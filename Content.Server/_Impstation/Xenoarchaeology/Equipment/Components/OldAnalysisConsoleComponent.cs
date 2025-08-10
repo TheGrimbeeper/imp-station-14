@@ -19,6 +19,13 @@ public sealed partial class OldAnalysisConsoleComponent : Component
     public EntityUid? AnalyzerEntity;
 
     /// <summary>
+    /// The advanced node scanner entity the console is linked (via analyzer relay).
+    /// Can be null if not linked.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadWrite)]
+    public EntityUid? AdvancedNodeScanner;
+
+    /// <summary>
     /// The machine linking port for the analyzer
     /// </summary>
     [DataField("linkingPort", customTypeSerializer: typeof(PrototypeIdSerializer<SourcePortPrototype>))]
