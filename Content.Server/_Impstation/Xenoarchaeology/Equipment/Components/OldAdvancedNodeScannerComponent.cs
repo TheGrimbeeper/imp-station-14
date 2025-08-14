@@ -1,4 +1,6 @@
 namespace Content.Server.Xenoarchaeology.Equipment.Components;
+using Content.Shared.DeviceLinking;
+using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype;
 
 [RegisterComponent]
 public sealed partial class OldAdvancedNodeScannerComponent : Component
@@ -9,6 +11,18 @@ public sealed partial class OldAdvancedNodeScannerComponent : Component
     /// </summary>
     [ViewVariables(VVAccess.ReadWrite)]
     public EntityUid? AnalyzerEntity;
+
+    /// <summary>
+    /// The machine linking port for the analyzer
+    /// </summary>
+    [DataField("linkingPort", customTypeSerializer: typeof(PrototypeIdSerializer<SourcePortPrototype>))]
+    public string LinkingPort = "ArtifactAnalyzerSenderAdvancedNodeScanner";
+
+    /// <summary>
+    /// How far away from the analyzer pad can the advanced node scanner get before it no longer scans. Infinite if negative
+    /// </summary>
+    [DataField(required: true)]
+    public int MaxDistanceFromAnalyzerPad;
 
     /// <summary>
     /// Stored scanned artifacts and their nodes

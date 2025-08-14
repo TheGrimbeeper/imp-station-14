@@ -60,8 +60,12 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
         SubscribeLocalEvent<OldArtifactAnalyzerComponent, ItemRemovedEvent>(OnItemRemoved);
 
         SubscribeLocalEvent<OldArtifactAnalyzerComponent, MapInitEvent>(OnMapInit);
-        SubscribeLocalEvent<OldAnalysisConsoleComponent, NewLinkEvent>(OnNewLink);
-        SubscribeLocalEvent<OldAnalysisConsoleComponent, PortDisconnectedEvent>(OnPortDisconnected);
+
+        SubscribeLocalEvent<OldAnalysisConsoleComponent, NewLinkEvent>(OnNewConsoleLink);
+        SubscribeLocalEvent<OldAnalysisConsoleComponent, PortDisconnectedEvent>(OnConsolePortDisconnected);
+
+        SubscribeLocalEvent<OldAdvancedNodeScannerComponent, NewLinkEvent>(OnAdvancedScannerLink);
+        SubscribeLocalEvent<OldAdvancedNodeScannerComponent, PortDisconnectedEvent>(OnAdvancedScannerPortDisconnected);
 
         SubscribeLocalEvent<OldAnalysisConsoleComponent, OldAnalysisConsoleServerSelectionMessage>(OnServerSelectionMessage);
         SubscribeLocalEvent<OldAnalysisConsoleComponent, AnalysisConsoleScanButtonPressedMessage>(OnScanButton);
@@ -160,15 +164,22 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
 
         foreach (var source in sink.LinkedSources)
         {
-            if (!TryComp<OldAnalysisConsoleComponent>(source, out var analysis))
-                continue;
-            component.Console = source;
-            analysis.AnalyzerEntity = uid;
-            return;
+            if (TryComp<OldAnalysisConsoleComponent>(source, out var analysis))
+            {
+                component.Console = source;
+                analysis.AnalyzerEntity = uid;
+            }
+
+            if (TryComp<OldAdvancedNodeScannerComponent>(source, out var advancedScanner))
+            {
+                component.AdvancedNodeScanner = source;
+                advancedScanner.AnalyzerEntity = uid;
+            }
         }
     }
 
-    private void OnNewLink(EntityUid uid, OldAnalysisConsoleComponent component, NewLinkEvent args)
+    // Link up the analyser to the console, additionally, pass in the advanced node scanner if we already have one linked to the pad
+    private void OnNewConsoleLink(EntityUid uid, OldAnalysisConsoleComponent component, NewLinkEvent args)
     {
         if (!TryComp<OldArtifactAnalyzerComponent>(args.Sink, out var analyzer))
             return;
@@ -179,16 +190,57 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
         UpdateUserInterface(uid, component);
     }
 
-    private void OnPortDisconnected(EntityUid uid, OldAnalysisConsoleComponent component, PortDisconnectedEvent args)
+    // Unlink the analyser from the console, additionally, unlink the advanced node scanner if we already have one linked to the pad
+    private void OnConsolePortDisconnected(EntityUid uid, OldAnalysisConsoleComponent component, PortDisconnectedEvent args)
     {
         if (args.Port == component.LinkingPort && component.AnalyzerEntity != null)
         {
-            if (TryComp<OldArtifactAnalyzerComponent>(component.AnalyzerEntity, out var analyzezr))
-                analyzezr.Console = null;
+            if (TryComp<OldArtifactAnalyzerComponent>(component.AnalyzerEntity, out var analyzer))
+            {
+                analyzer.Console = null;
+                if (analyzer.AdvancedNodeScanner is not null && TryComp<OldAdvancedNodeScannerComponent>(analyzer.AdvancedNodeScanner, out var advancedNodeScanner))
+                    component.AdvancedNodeScanner = null;
+            }
             component.AnalyzerEntity = null;
         }
 
         UpdateUserInterface(uid, component);
+    }
+
+    // Link the analyzer to the advanced node scanner,
+    //  additionally inform the analysis console about the advanced node scanner (if the analyzer is connected to one)
+    private void OnAdvancedScannerLink(EntityUid uid, OldAdvancedNodeScannerComponent component, NewLinkEvent args)
+    {
+        if (!TryComp<OldArtifactAnalyzerComponent>(args.Sink, out var analyzer))
+            return;
+
+        component.AnalyzerEntity = args.Sink;
+        analyzer.AdvancedNodeScanner = uid;
+
+        if (analyzer.Console is not null && TryComp<OldAnalysisConsoleComponent>(analyzer.Console, out var analysisConsoleComponent))
+        {
+            analysisConsoleComponent.AdvancedNodeScanner = uid;
+            UpdateUserInterface((EntityUid)analyzer.Console, analysisConsoleComponent);
+        }
+    }
+
+    // Unlink the analyzer from the advanced node scanner,
+    //  additionally inform the analysis console about the advanced node scanner being disconnected (if the analyzer is connected to one)
+    private void OnAdvancedScannerPortDisconnected(EntityUid uid, OldAdvancedNodeScannerComponent component, PortDisconnectedEvent args)
+    {
+        if (args.Port == component.LinkingPort && component.AnalyzerEntity != null)
+        {
+            if (TryComp<OldArtifactAnalyzerComponent>(component.AnalyzerEntity, out var analyzer))
+            {
+                analyzer.AdvancedNodeScanner = null;
+                if (analyzer.Console is not null && TryComp<OldAnalysisConsoleComponent>(analyzer.Console, out var analysisConsoleComponent))
+                {
+                    analysisConsoleComponent.AdvancedNodeScanner = null;
+                    UpdateUserInterface((EntityUid)analyzer.Console, analysisConsoleComponent);
+                }
+            }
+            component.AnalyzerEntity = null;
+        }
     }
 
     private void UpdateUserInterface(EntityUid uid, OldAnalysisConsoleComponent? component = null)
