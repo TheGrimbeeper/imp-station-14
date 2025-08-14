@@ -26,6 +26,12 @@ public sealed partial class OldAnalysisConsoleComponent : Component
     public EntityUid? AdvancedNodeScanner;
 
     /// <summary>
+    /// Stored scanned artifacts and their nodes, synced from the advanced node scanner via analyzer relay
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly)]
+    public Dictionary<EntityUid, AdvancedNodeScannerNodeData> ScannedArtifactData = new Dictionary<EntityUid, AdvancedNodeScannerNodeData>();
+
+    /// <summary>
     /// The machine linking port for the analyzer
     /// </summary>
     [DataField("linkingPort", customTypeSerializer: typeof(PrototypeIdSerializer<SourcePortPrototype>))]

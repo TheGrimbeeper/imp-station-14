@@ -4,7 +4,7 @@ namespace Content.Server.Xenoarchaeology.Equipment.Components;
 public sealed partial class OldAdvancedNodeScannerComponent : Component
 {
     /// <summary>
-    /// The analyzer entity the console is linked.
+    /// The analyzer entity the advanced node scanner is linked.
     /// Can be null if not linked.
     /// </summary>
     [ViewVariables(VVAccess.ReadWrite)]
