@@ -178,7 +178,9 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
         }
     }
 
-    // Link up the analyser to the console, additionally, pass in the advanced node scanner if we already have one linked to the pad
+    /// <summary>
+    /// Link up the analyser to the console, additionally, pass in the advanced node scanner if we already have one linked to the pad
+    /// </summary>
     private void OnNewConsoleLink(EntityUid uid, OldAnalysisConsoleComponent component, NewLinkEvent args)
     {
         if (!TryComp<OldArtifactAnalyzerComponent>(args.Sink, out var analyzer))
@@ -190,7 +192,9 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
         UpdateUserInterface(uid, component);
     }
 
-    // Unlink the analyser from the console, additionally, unlink the advanced node scanner if we already have one linked to the pad
+    /// <summary>
+    /// Unlink the analyser from the console, additionally, unlink the advanced node scanner if we already have one linked to the pad
+    /// </summary>
     private void OnConsolePortDisconnected(EntityUid uid, OldAnalysisConsoleComponent component, PortDisconnectedEvent args)
     {
         if (args.Port == component.LinkingPort && component.AnalyzerEntity != null)
@@ -207,8 +211,10 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
         UpdateUserInterface(uid, component);
     }
 
-    // Link the analyzer to the advanced node scanner,
-    //  additionally inform the analysis console about the advanced node scanner (if the analyzer is connected to one)
+    /// <summary>
+    /// Link the analyzer to the advanced node scanner,
+    ///  additionally inform the analysis console about the advanced node scanner (if the analyzer is connected to one)
+    /// </summary>
     private void OnAdvancedScannerLink(EntityUid uid, OldAdvancedNodeScannerComponent component, NewLinkEvent args)
     {
         if (!TryComp<OldArtifactAnalyzerComponent>(args.Sink, out var analyzer))
@@ -224,8 +230,10 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
         }
     }
 
-    // Unlink the analyzer from the advanced node scanner,
-    //  additionally inform the analysis console about the advanced node scanner being disconnected (if the analyzer is connected to one)
+    /// <summary>
+    /// Unlink the analyzer from the advanced node scanner,
+    ///  additionally inform the analysis console about the advanced node scanner being disconnected (if the analyzer is connected to one)
+    /// </summary>
     private void OnAdvancedScannerPortDisconnected(EntityUid uid, OldAdvancedNodeScannerComponent component, PortDisconnectedEvent args)
     {
         if (args.Port == component.LinkingPort && component.AnalyzerEntity != null)
