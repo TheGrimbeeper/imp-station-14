@@ -28,9 +28,8 @@ public sealed partial class OldAdvancedNodeScannerComponent : Component
     /// Stored scanned artifacts and their nodes
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly)]
-    public Dictionary<EntityUid, AdvancedNodeScannerNodeData> ScannedArtifactData = new Dictionary<EntityUid, AdvancedNodeScannerNodeData>();
+    public Dictionary<EntityUid, AdvancedNodeScannerArtifactData> ScannedArtifactData = new Dictionary<EntityUid, AdvancedNodeScannerArtifactData>();
 }
-
 
 [Serializable]
 public struct AdvancedNodeScannerNodeData(
@@ -46,16 +45,25 @@ public struct AdvancedNodeScannerNodeData(
     /// stored data about an artifact node
     /// </summary>
     public int NodeId = nodeId;
-
     public int Depth = depth;
-
     public int ParentId = parentId;
-
     public List<int> ChildIds = childIds;
-
     public string Trigger = trigger;
-
     public string Effect = effect;
-
     public bool Activated = activated;
+}
+
+[Serializable]
+public struct AdvancedNodeScannerArtifactData(
+    int currentNodeId,
+    HashSet<int> knownNodeIds,
+    List<AdvancedNodeScannerNodeData> nodes
+)
+{
+    /// <summary>
+    /// Holds all the advanced node scanner data about artifact, mainly a container for all the nodes
+    /// </summary>
+    public int CurrentNodeId = currentNodeId;
+    public HashSet<int> KnownNodeIds = knownNodeIds;
+    public List<AdvancedNodeScannerNodeData> Nodes = nodes;
 }

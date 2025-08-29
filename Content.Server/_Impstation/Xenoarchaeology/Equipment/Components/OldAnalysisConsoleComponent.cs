@@ -29,7 +29,7 @@ public sealed partial class OldAnalysisConsoleComponent : Component
     /// Stored scanned artifacts and their nodes, synced from the advanced node scanner via analyzer relay
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly)]
-    public Dictionary<EntityUid, AdvancedNodeScannerNodeData> ScannedArtifactData = new Dictionary<EntityUid, AdvancedNodeScannerNodeData>();
+    public Dictionary<EntityUid, AdvancedNodeScannerArtifactData> ScannedArtifactData = new Dictionary<EntityUid, AdvancedNodeScannerArtifactData>();
 
     /// <summary>
     /// The machine linking port for the analyzer

@@ -24,7 +24,6 @@ using Robust.Shared.Audio.Systems;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Timing;
 using Robust.Shared.Utility;
-using Content.Shared.Xenoarchaeology.Artifact.Components;
 
 namespace Content.Server.Xenoarchaeology.Equipment.Systems;
 
@@ -32,7 +31,7 @@ namespace Content.Server.Xenoarchaeology.Equipment.Systems;
 /// This system is used for managing the artifact analyzer as well as the analysis console.
 /// It also hanadles scanning and ui updates for both systems.
 /// </summary>
-public sealed class ArtifactAnalyzerSystem : EntitySystem
+public sealed class OldArtifactAnalyzerSystem : EntitySystem
 {
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly IPrototypeManager _prototype = default!;
@@ -46,6 +45,7 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
     [Dependency] private readonly SharedPowerReceiverSystem _receiver = default!;
     [Dependency] private readonly TraversalDistorterSystem _traversalDistorter = default!;
     [Dependency] private readonly UserInterfaceSystem _ui = default!;
+    [Dependency] private readonly OldAdvancedNodeScannerSystem _ans = default!;
 
     /// <inheritdoc/>
     public override void Initialize()
@@ -120,7 +120,7 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
     /// <param name="uid"></param>
     /// <param name="placer"></param>
     /// <returns></returns>
-    private EntityUid? GetArtifactForAnalysis(EntityUid? uid, ItemPlacerComponent? placer = null)
+    public EntityUid? GetArtifactForAnalysis(EntityUid? uid, ItemPlacerComponent? placer = null)
     {
         if (uid == null || !Resolve(uid.Value, ref placer))
             return null;
@@ -179,7 +179,7 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
     }
 
     /// <summary>
-    /// Link up the analyser to the console, additionally, pass in the advanced node scanner if we already have one linked to the pad
+    /// Link up the analyzer to the console, additionally, pass in the advanced node scanner if we already have one linked to the pad
     /// </summary>
     private void OnNewConsoleLink(EntityUid uid, OldAnalysisConsoleComponent component, NewLinkEvent args)
     {
@@ -189,11 +189,14 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
         component.AnalyzerEntity = args.Sink;
         analyzer.Console = uid;
 
+        // Its actually good to pass in null advanced node scanners. Overwrite the existing one because we're changeing the pad.
+        component.AdvancedNodeScanner = analyzer.AdvancedNodeScanner;
+
         UpdateUserInterface(uid, component);
     }
 
     /// <summary>
-    /// Unlink the analyser from the console, additionally, unlink the advanced node scanner if we already have one linked to the pad
+    /// Unlink the analyzer from the console, additionally, unlink the advanced node scanner if we already have one linked to the pad
     /// </summary>
     private void OnConsolePortDisconnected(EntityUid uid, OldAnalysisConsoleComponent component, PortDisconnectedEvent args)
     {
@@ -202,7 +205,7 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
             if (TryComp<OldArtifactAnalyzerComponent>(component.AnalyzerEntity, out var analyzer))
             {
                 analyzer.Console = null;
-                if (analyzer.AdvancedNodeScanner is not null && TryComp<OldAdvancedNodeScannerComponent>(analyzer.AdvancedNodeScanner, out var advancedNodeScanner))
+                if (analyzer.AdvancedNodeScanner is not null && HasComp<OldAdvancedNodeScannerComponent>(analyzer.AdvancedNodeScanner))
                     component.AdvancedNodeScanner = null;
             }
             component.AnalyzerEntity = null;
@@ -278,6 +281,8 @@ public sealed class ArtifactAnalyzerSystem : EntitySystem
             // the artifact that's actually on the scanner right now.
             if (GetArtifactForAnalysis(component.AnalyzerEntity, placer) is { } current)
                 points = _artifact.GetResearchPointValue(current);
+
+            _ans.TryAdvancedScanNodeId((EntityUid)component.AnalyzerEntity);
         }
 
         var analyzerConnected = component.AnalyzerEntity != null;
