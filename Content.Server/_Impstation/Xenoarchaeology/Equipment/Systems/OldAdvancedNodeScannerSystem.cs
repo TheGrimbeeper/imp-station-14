@@ -15,7 +15,7 @@ public sealed class OldAdvancedNodeScannerSystem : EntitySystem
     /// <inheritdoc/>
     public override void Initialize()
     {
-        SubscribeLocalEvent<ArtifactComponent, ArtifactActivatedEvent>(OnArtifactActivatedAlways);
+        SubscribeLocalEvent<ArtifactComponent, ArtifactNodeEnteredEvent>(OnNodeEntered);
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public sealed class OldAdvancedNodeScannerSystem : EntitySystem
     /// <summary>
     /// Catch every instance of the artifact activating and check if it is on a pad linked to advanced node scanner
     /// </summary>
-    private void OnArtifactActivatedAlways(EntityUid uid, ArtifactComponent component, ArtifactActivatedEvent args)
+    private void OnNodeEntered(EntityUid uid, ArtifactComponent component, ArtifactNodeEnteredEvent args)
     {
         // Get all pads within 2 tiles, check if they have the artifact on them
         if (!TryComp<TransformComponent>(uid, out var transform))
@@ -118,8 +118,18 @@ public sealed class OldAdvancedNodeScannerSystem : EntitySystem
             scannedData.CurrentNodeId = (int)currentNodeId;
             scannedData.KnownNodeIds.Add((int)currentNodeId);
 
-            //TODO: Get artifact trigger & effect; if already exist but different from actual node then admin intervention has happened and we
-            // need to update them
+            //Get artifact trigger & effect; if already exist but different from actual node then admin intervention has happened and we
+            // need to obfuscate them
+            var nodeData = scannedData.Nodes.Find(x => x.NodeId == currentNodeId);
+            var artiNode = artiComp.NodeTree.Find(x => x.Id == currentNodeId);
+            if (artiNode is not null)
+            {
+                if (nodeData.Trigger != artiNode.Trigger || nodeData.Effect != artiNode.Effect)
+                {
+                    nodeData.Trigger = "ERROR";
+                    nodeData.Effect = "ERROR";
+                }
+            }
         }
         else
         {
