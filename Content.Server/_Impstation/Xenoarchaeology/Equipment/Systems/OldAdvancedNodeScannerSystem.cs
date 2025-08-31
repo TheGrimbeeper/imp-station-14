@@ -4,6 +4,7 @@ using Content.Server.Power.Components;
 using Content.Shared.Construction.Components;
 using Content.Server.Xenoarchaeology.XenoArtifacts.Events;
 using Content.Shared.Xenoarchaeology.Equipment.Components;
+using System.Linq;
 
 namespace Content.Server.Xenoarchaeology.Equipment.Systems;
 
@@ -73,7 +74,7 @@ public sealed class OldAdvancedNodeScannerSystem : EntitySystem
     }
 
     /// <summary>
-    /// Advanced Node Scanning (ANS): Get and synchronize artifact ID if advanced node scanner is connected to an analyzer
+    /// Get and synchronize artifact ID if advanced node scanner is connected to an analyzer
     /// Also check if trigger/effect changed, (admin intervention) and blank those out
     /// </summary>
     public void TryAdvancedScanNodeId(EntityUid analyzer)
@@ -120,14 +121,18 @@ public sealed class OldAdvancedNodeScannerSystem : EntitySystem
 
             //Get artifact trigger & effect; if already exist but different from actual node then admin intervention has happened and we
             // need to obfuscate them
-            var nodeData = scannedData.Nodes.Find(x => x.NodeId == currentNodeId);
-            var artiNode = artiComp.NodeTree.Find(x => x.Id == currentNodeId);
-            if (artiNode is not null)
+            if (scannedData.Nodes.Exists(x => x.NodeId == currentNodeId))
             {
-                if (nodeData.Trigger != artiNode.Trigger || nodeData.Effect != artiNode.Effect)
+                var nodeData = scannedData.Nodes.Find(x => x.NodeId == currentNodeId);
+                var artiNode = artiComp.NodeTree.Find(x => x.Id == currentNodeId);
+                if (artiNode is not null)
                 {
-                    nodeData.Trigger = "ERROR";
-                    nodeData.Effect = "ERROR";
+                    if (nodeData.Trigger != artiNode.Trigger || nodeData.Effect != artiNode.Effect)
+                    {
+                        nodeData.Trigger = "ERROR";
+                        nodeData.Effect = "ERROR";
+                    }
+                    nodeData.Activated = artiNode.Triggered; //Advanced node scanner can tell if its triggered
                 }
             }
         }
@@ -145,9 +150,112 @@ public sealed class OldAdvancedNodeScannerSystem : EntitySystem
     }
 
     /// <summary>
+    /// Full scan of artifact
+    /// </summary>
+    public void TryAdvancedScanNodeFull(EntityUid analyzer)
+    {
+    // Analyzer must have analyzer component
+        if (!TryComp<OldArtifactAnalyzerComponent>(analyzer, out var analyzerComponent))
+            return;
+
+        // Can't advanced scan without advanced scanner
+        var advancedNodeScanner = analyzerComponent.AdvancedNodeScanner;
+        if (advancedNodeScanner is null)
+            return;
+
+        // advanced scanner needs advanced scan component
+        if (!TryComp<OldAdvancedNodeScannerComponent>(advancedNodeScanner, out var ansComp))
+            return; // if this happens something has gone wrong or admin intervention has occurred
+
+        // needs to be plugged in and close to pad and such
+        var ansEntity = new Entity<OldAdvancedNodeScannerComponent>((EntityUid)advancedNodeScanner, ansComp);
+        if (CanProvideAdvancedScanning(ansEntity))
+            return;
+
+        // need an artifact to advanced scan
+        var maybeArtifact = _analyzer.GetArtifactForAnalysis(analyzer);
+        if (maybeArtifact is null)
+            return;
+
+        var artifact = (EntityUid)maybeArtifact;
+
+        // artifact has to have artifact component
+        if (!TryComp<ArtifactComponent>(artifact, out var artiComp))
+            return; // if this happens then something has gone very wrong
+
+        var currentNodeId = artiComp.CurrentNodeId;
+
+        if (currentNodeId is null)
+            return;
+
+        // artifact must have an actual node in the tree, otherwise WTF?
+        if (!artiComp.NodeTree.Exists(x => x.Id == currentNodeId))
+            return;
+
+        var artiNode = artiComp.NodeTree.Find(x => x.Id == currentNodeId);
+
+        var artiNodeParent = GetParentOfNode(artiComp, artiNode);
+        var artiNodeChildren = artiNode.Edges.ToList<int>();
+        artiNodeChildren.Remove(artiNodeParent);
+
+        //update existing artifact data
+        if (ansComp.ScannedArtifactData.TryGetValue(artifact, out var scannedData))
+        {
+            scannedData.CurrentNodeId = (int)currentNodeId;
+            scannedData.KnownNodeIds.Add((int)currentNodeId);
+
+            // if we don't have info yet, we need to add it. otherwise we assume we already know.
+            if (!scannedData.Nodes.Exists(x => x.NodeId == currentNodeId))
+            {
+                scannedData.Nodes.Add(new AdvancedNodeScannerNodeData(
+                    (int)currentNodeId,
+                    artiNode.Depth,
+                    artiNodeParent,
+                    artiNodeChildren,
+                    artiNode.Trigger,
+                    artiNode.Effect,
+                    artiNode.Triggered
+                ));
+            }
+        }
+        else
+        {
+            // no existing data, so make a new data and put the current node in there
+            var newKnownNodes = new HashSet<int>((int)currentNodeId);
+            var newData = new AdvancedNodeScannerArtifactData((int)currentNodeId, newKnownNodes, new List<AdvancedNodeScannerNodeData>());
+
+            //We scan the entire node
+            var scannedNode = new AdvancedNodeScannerNodeData(
+                (int)currentNodeId,
+                artiNode.Depth,
+                artiNodeParent,
+                artiNodeChildren,
+                artiNode.Trigger,
+                artiNode.Effect,
+                artiNode.Triggered
+            );
+
+            newData.Nodes.Add(scannedNode);
+            ansComp.ScannedArtifactData.Add(artifact, newData);
+        }
+        // Sync data to any attached analysis consoles
+        var analyzerEntity = new Entity<OldArtifactAnalyzerComponent>((EntityUid)analyzer, analyzerComponent);
+        TrySynchronizeAdvancedScanData(ansEntity, analyzerEntity);
+    }
+
+    /// <summary>
+    /// Figure out what the parent of a node is (its the edge of the node with the lowest depth)
+    /// </summary>
+    private static int GetParentOfNode(ArtifactComponent comp, ArtifactNode node)
+    {
+        // TODO!!
+        return 0;
+    }
+
+    /// <summary>
     /// Synchronise advanced scan data from advanced node scanner to analysis console. Requires both advanced node scanner and analyzer
     /// </summary>
-    public void TrySynchronizeAdvancedScanData(Entity<OldAdvancedNodeScannerComponent> ansEntity, Entity<OldArtifactAnalyzerComponent> analyzerEntity)
+    public static void TrySynchronizeAdvancedScanData(Entity<OldAdvancedNodeScannerComponent> ansEntity, Entity<OldArtifactAnalyzerComponent> analyzerEntity)
     {
         //TODO
         return;
@@ -156,7 +264,7 @@ public sealed class OldAdvancedNodeScannerSystem : EntitySystem
     /// <summary>
     /// Synchronise advanced scan data from advanced node scanner to analysis console. Takes in Advanced Node Scanner as argument.
     /// </summary>
-    public void TrySynchronizeAdvancedScanData(Entity<OldAdvancedNodeScannerComponent> ansEntity)
+    public static void TrySynchronizeAdvancedScanData(Entity<OldAdvancedNodeScannerComponent> ansEntity)
     {
         //TODO get analyzer entity from ansEntity, call full TrySync
         return;
@@ -165,7 +273,7 @@ public sealed class OldAdvancedNodeScannerSystem : EntitySystem
     /// <summary>
     /// Synchronise advanced scan data from advanced node scanner to analysis console. Takes in Artifact Analyzer as argument.
     /// </summary>
-    public void TrySynchronizeAdvancedScanData(Entity<OldArtifactAnalyzerComponent> analyzerEntity)
+    public static void TrySynchronizeAdvancedScanData(Entity<OldArtifactAnalyzerComponent> analyzerEntity)
     {
         //TODO get ansEntity from analyzerEntity, call full TrySync
         return;

@@ -525,6 +525,10 @@ public sealed class OldArtifactAnalyzerSystem : EntitySystem
 
         RemComp<ActiveScannedArtifactComponent>(active.Artifact);
         RemComp(uid, active);
+        //Advanced node scan
+        if (component.AdvancedNodeScanner is not null)
+            _ans.TryAdvancedScanNodeFull(uid);
+
         if (component.Console != null)
             UpdateUserInterface(component.Console.Value);
     }
