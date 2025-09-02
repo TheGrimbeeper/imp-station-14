@@ -727,7 +727,7 @@
   id: EffectBoom
   targetDepth: 4  # IMP: Moved depth to 4 from 3
   effectProb: 0.75 # IMP: reduced probability because this is forces scientists to rebuild the xenoarch chamber
-  effectHint: artifact-effect-hint-stationwide-disruption
+  effectHint: artifact-effect-hint-environment
   components:
   - type: TriggerArtifact
   - type: ExplodeOnTrigger
