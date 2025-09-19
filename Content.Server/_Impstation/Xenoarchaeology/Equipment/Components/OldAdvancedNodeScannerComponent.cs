@@ -35,7 +35,7 @@ public sealed partial class OldAdvancedNodeScannerComponent : Component
 public struct AdvancedNodeScannerNodeData(
     int nodeId,
     int depth,
-    int parentId,
+    int? parentId,
     List<int> childIds,
     string trigger,
     string effect,
@@ -46,7 +46,7 @@ public struct AdvancedNodeScannerNodeData(
     /// </summary>
     public int NodeId = nodeId;
     public int Depth = depth;
-    public int ParentId = parentId;
+    public int? ParentId = parentId;
     public List<int> ChildIds = childIds;
     public string Trigger = trigger;
     public string Effect = effect;
